@@ -13,14 +13,13 @@
 #define RST_PIN                                                             PA0
 
 
+// ############# Xbee Serial #############
 #ifdef TARGET_STM_32
 HardwareSerial xbee(TX_PIN, RX_PIN);
 #elif TARGET_ESP_32
 HardwareSerial xbee(1);
 
-
-// ############# LoRaWAN if ESP32 ###########
-
+// ############# LoRaWAN if ESP32 #############
 /*license for Heltec ESP32 LoRaWan, quary your ChipID relevant license: http://resource.heltec.cn/search */
 uint32_t  license[4] = {0x6CFFE668,0x0C49E20C,0x77B66ED9,0xC77E7FDA};
 
@@ -96,18 +95,7 @@ static void prepareTxFrame( uint8_t port )
     appData[2] = 0x02;
     appData[3] = 0x03;
 }
-
-
-
-
-
 #endif
-
-
-
-
-
-
 
 // Define RX and TX global buffer
 char tx_buf[MAXIMUM_BUFFER_SIZE] = {0};
@@ -119,13 +107,10 @@ uint64_t sink_addr = 0x0013a20041f223b8;
 millisDelay sendDelay;
 
 
-
-
-
-
 /*
-############ TODO #############
-Change void to int, return error codes
+TODO
+- Change void to int, return error codes
+- Not really a callback
 */
 static void rx_callback(char *buffer){
 
@@ -165,27 +150,25 @@ static void rx_callback(char *buffer){
 
 void setup() {
     Serial.begin(115200);
-    #ifdef TARGET_STM_32
+#ifdef TARGET_STM_32
     xbee.begin(115200);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_RESET);
-    #elif TARGET_ESP_32
+#elif TARGET_ESP_32
     xbee.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
     digitalWrite(15, LOW); 
 
-
-    // ################LoRaWAN#######################
+    // LoRaWAN setup
     SPI.begin(SCK,MISO,MOSI,SS);
     Mcu.init(SS,RST_LoRa,DIO0,DIO1,license);
     deviceState = DEVICE_STATE_INIT;
-    #endif
-
+#endif
 
     delay(100);
-    #ifdef TARGET_STM_32
+#ifdef TARGET_STM_32
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, GPIO_PIN_SET);
-    #elif TARGET_ESP_32
+#elif TARGET_ESP_32
     digitalWrite(15, HIGH); 
-    #endif
+#endif
     delay(100);
     sendDelay.start(1000);
     Serial.printf("Setup finished\n");
@@ -211,7 +194,7 @@ void loop() {
         }Serial.printf("\n");*/
     rx_callback(rx_buf);
 
-    #ifdef TARGET_ESP_32
+#ifdef TARGET_ESP_32
     switch( deviceState ){
       case DEVICE_STATE_INIT:
       {
@@ -252,5 +235,5 @@ void loop() {
         break;
       }
   }
-  #endif
+#endif
 }
