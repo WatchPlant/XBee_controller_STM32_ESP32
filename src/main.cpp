@@ -4,20 +4,20 @@
 #ifdef TARGET_STM_32
 #include "stm32wbxx_hal.h"
 #elif TARGET_ESP_32
-#include "ESP32_LoRaWAN.h"
+#include <LoRaWan_APP.h>
 #endif
+
 #include "zigbee.h"
 #include "utils.h"
+
 #define MAXIMUM_BUFFER_SIZE                                                 300
 #define START_DELIMITER                                                     0x7E
 #define RST_PIN                                                             PA0
-
 
 #ifdef TARGET_STM_32
 HardwareSerial xbee(TX_PIN, RX_PIN);
 #elif TARGET_ESP_32
 HardwareSerial xbee(1);
-
 
 // ############# LoRaWAN if ESP32 ###########
 
@@ -27,7 +27,17 @@ uint32_t  license[4] = {0x6CFFE668,0x0C49E20C,0x77B66ED9,0xC77E7FDA};
 /* OTAA para*/
 uint8_t DevEui[] = { 0x22, 0x32, 0x33, 0x00, 0x00, 0x88, 0x88, 0x02 };
 uint8_t AppEui[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-uint8_t AppKey[] = { 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x66, 0x01 };
+char appKeyString[] = "724CBB6B573DD8C01D151FF45F1680FD";
+uint8_t AppKey[16]; // Will be filled in during setup.
+
+void convert_keystring(void)
+{
+  const char *pos = appKeyString;
+  for (size_t count = 0; count < 16; count++) {
+        sscanf(pos, "%2hhx", &AppKey[count]);
+        pos += 2;
+    }
+}
 
 /* ABP para*/
 uint8_t NwkSKey[] = { 0x15, 0xb1, 0xd0, 0xef, 0xa4, 0x63, 0xdf, 0xbe, 0x3d, 0x11, 0x18, 0x1e, 0x1e, 0xc7, 0xda,0x85 };
@@ -96,17 +106,7 @@ static void prepareTxFrame( uint8_t port )
     appData[2] = 0x02;
     appData[3] = 0x03;
 }
-
-
-
-
-
 #endif
-
-
-
-
-
 
 
 // Define RX and TX global buffer
@@ -116,11 +116,6 @@ int tx_length = 0;
 
 // Delays for software-"multithreading"/scheduling
 millisDelay sendDelay;
-
-
-
-
-
 
 /*
 ############ TODO #############
@@ -173,13 +168,12 @@ void setup() {
     xbee.begin(115200, SERIAL_8N1, RX_PIN, TX_PIN);
     digitalWrite(15, LOW); 
 
-
-    // ################LoRaWAN#######################
+    // LoRaWAN
+    convert_keystring();
     SPI.begin(SCK,MISO,MOSI,SS);
-    Mcu.init(SS,RST_LoRa,DIO0,DIO1,license);
+    Mcu.begin();
     deviceState = DEVICE_STATE_INIT;
     #endif
-
 
     // myled = 0;
     delay(100);
@@ -215,7 +209,7 @@ void loop() {
       case DEVICE_STATE_INIT:
       {
         #if(LORAWAN_DEVEUI_AUTO)
-              LoRaWAN.generateDeveuiByChipID();
+        LoRaWAN.generateDeveuiByChipID();
         #endif
         LoRaWAN.init(loraWanClass,loraWanRegion);
         break;
@@ -228,7 +222,7 @@ void loop() {
       case DEVICE_STATE_SEND:
       {
         prepareTxFrame( appPort );
-        LoRaWAN.send(loraWanClass);
+        LoRaWAN.send();
         deviceState = DEVICE_STATE_CYCLE;
         break;
       }
@@ -242,7 +236,7 @@ void loop() {
       }
       case DEVICE_STATE_SLEEP:
       {
-        LoRaWAN.sleep(loraWanClass,debugLevel);
+        LoRaWAN.sleep(loraWanClass);
         break;
       }
       default:
